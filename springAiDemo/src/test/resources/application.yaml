@@ -1,0 +1,9 @@
+# 测试：保持 local 以启用 application-local.yaml 中的 API Key；默认关闭 MCP，避免无外网时初始化远端连接
+spring:
+  profiles:
+    include:
+      - local
+  ai:
+    mcp:
+      client:
+        enabled: false

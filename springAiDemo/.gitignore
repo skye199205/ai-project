@@ -1,0 +1,37 @@
+HELP.md
+# DashScope / 其它本地密钥（application.yaml 会通过 profile 包含 local）
+src/main/resources/application-local.yaml
+# 若 Docker 挂载了本仓库下的 Chroma 数据目录（示例 ./chroma_db），可忽略避免误提交
+chroma_db/
+target/
+.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+### STS ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+
+### IntelliJ IDEA ###
+.idea
+*.iws
+*.iml
+*.ipr
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+build/
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+### VS Code ###
+.vscode/

@@ -1,0 +1,57 @@
+spring:
+  application:
+    name: springAiDemo
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 50MB
+  # 加载 application-local.yaml（存放 DashScope API Key，已加入 .gitignore）
+  profiles:
+    include:
+      - local
+  ai:
+    # Chroma 1.x：请自行先用 Docker（或其它方式）拉起 HTTP 服务，再启动本应用；Spring 只连下方 client。
+    # 端口默认 8000；若改了映射端口，请同步修改 client.port。
+    # Chroma Cloud：client.host=api.trychroma.com、port=443、key-token=...，并改写 tenant/database。
+    vectorstore:
+      type: chroma
+      chroma:
+        initialize-schema: true
+        tenant-name: SpringAiTenant
+        database-name: SpringAiDatabase
+        collection-name: spring-aidemo-collection
+        client:
+          host: http://localhost
+          port: 8000
+    openai:
+      # DashScope OpenAI 兼容：不要带末尾 /v1（Spring AI 会拼接 chat.completions-path，默认 /v1/chat/completions）
+      # 北京地域；国际区示例：https://dashscope-intl.aliyuncs.com/compatible-mode
+      base-url: https://dashscope.aliyuncs.com/compatible-mode
+      chat:
+        options:
+          # 通义模型（DashScope 模型名以控制台/文档为准）
+          model: qwen3.6-plus
+      # 与聊天共用 base-url、api-key；向量维度随模型变化，请与百炼控制台一致
+      embedding:
+        options:
+          model: text-embedding-v3
+    # RAG 检索参数（QuestionAnswerAdvisor）
+    rag:
+      top-k: 4
+      similarity-threshold: 0.6
+      # 长文自动分块（TokenTextSplitter，单位为 token 估算）
+      chunk-size: 800
+      min-chunk-size-chars: 350
+    # DashScope 托管 MCP（高德地图等）。鉴权与 OpenAI 兼容接口共用同一把 DashScope API Key（见 application-local.yaml）。
+    mcp:
+      client:
+        type: SYNC
+        streamable-http:
+          connections:
+            # 与 Cursor mcpServers 中 streamableHttp / url 等价：基址 + 路径拆分为 url + endpoint
+            amap-maps:
+              url: https://dashscope.aliyuncs.com
+              endpoint: /api/v1/mcps/amap-maps/mcp
+
+server:
+  port: 8091

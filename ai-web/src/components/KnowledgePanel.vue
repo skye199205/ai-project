@@ -1,7 +1,15 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import DocumentUpload from './DocumentUpload.vue'
 import TextIngest from './TextIngest.vue'
 import ArticleIngest from './ArticleIngest.vue'
+import {
+  useVectorBackend,
+  VECTOR_BACKEND_LABEL,
+} from '../composables/useVectorBackend'
+
+const backend = useVectorBackend()
+const backendLabel = computed(() => VECTOR_BACKEND_LABEL[backend.value])
 </script>
 
 <template>
@@ -10,6 +18,7 @@ import ArticleIngest from './ArticleIngest.vue'
       <div class="card-title">
         <el-icon><Collection /></el-icon>
         <span>知识库入库</span>
+        <el-tag size="small" type="info" class="backend-tag">{{ backendLabel }}</el-tag>
       </div>
     </template>
 
@@ -37,5 +46,10 @@ import ArticleIngest from './ArticleIngest.vue'
   align-items: center;
   gap: 8px;
   font-weight: 600;
+}
+
+.backend-tag {
+  margin-left: 4px;
+  font-weight: normal;
 }
 </style>

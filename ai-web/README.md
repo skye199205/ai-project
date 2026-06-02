@@ -9,7 +9,8 @@
 | 文件上传 | `POST /api/rag/documents/upload` | PDF / Word / TXT / Markdown |
 | 文本段落 | `POST /api/rag/documents` | 多段短文本批量入库 |
 | 长文粘贴 | `POST /api/rag/documents/article` | 自动分块入库 |
-| RAG 问答 | `POST /api/rag/ask` | 基于向量库检索回答 |
+| 混合 RAG 问答 | `POST /api/rag/ask/hybrid` | 向量 + 关键词多路召回（RRF） |
+| 单路 RAG 问答 | `POST /api/rag/ask` | 基于 Advisor 向量检索（前端未使用） |
 | 通用对话 | `POST /api/chat` | 普通聊天（含 MCP） |
 
 ## 启动

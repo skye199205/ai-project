@@ -15,6 +15,8 @@ import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.transformer.splitter.TokenTextSplitter;
 import org.springframework.ai.vectorstore.VectorStore;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
@@ -26,61 +28,58 @@ import java.util.Map;
 import java.util.Objects;
 
 /**
- * RAG：文本/长文入库、检索增强问答等业务逻辑。
+ * 基于 PostgreSQL pgvector 的 RAG 业务（与 {@link RagService} Chroma 路隔离）。
  */
 @Service
-public class RagService {
+@ConditionalOnBean(name = "pgVectorStore")
+public class PgRagService {
 
-    /**
-     * 与 {@link com.example.springaidemo.controller.ChatController} 相同方式构建，仅在本服务内配合
-     * QA Advisor 做检索增强
-     */
     private final ChatClient chatClient;
-    private final QuestionAnswerAdvisor questionAnswerAdvisor;
-    private final VectorStore vectorStore;
+    private final QuestionAnswerAdvisor pgQuestionAnswerAdvisor;
+    private final VectorStore pgVectorStore;
     private final TokenTextSplitter tokenTextSplitter;
     private final DocumentParseService documentParseService;
-    private final DocumentIndexSyncService documentIndexSyncService;
+    private final PgDocumentIndexSyncService pgDocumentIndexSyncService;
 
-    public RagService(
+    public PgRagService(
             ChatClient.Builder chatClientBuilder,
-            QuestionAnswerAdvisor questionAnswerAdvisor,
-            VectorStore vectorStore,
+            @Qualifier("pgQuestionAnswerAdvisor") QuestionAnswerAdvisor pgQuestionAnswerAdvisor,
+            @Qualifier("pgVectorStore") VectorStore pgVectorStore,
             TokenTextSplitter tokenTextSplitter,
             DocumentParseService documentParseService,
-            DocumentIndexSyncService documentIndexSyncService) {
+            PgDocumentIndexSyncService pgDocumentIndexSyncService) {
         this.chatClient = Objects.requireNonNull(chatClientBuilder, "ChatClient.Builder 未注入").build();
-        this.questionAnswerAdvisor = Objects.requireNonNull(questionAnswerAdvisor, "QuestionAnswerAdvisor 未注入");
-        this.vectorStore = Objects.requireNonNull(vectorStore, "VectorStore 未注入");
+        this.pgQuestionAnswerAdvisor = Objects.requireNonNull(pgQuestionAnswerAdvisor, "pgQuestionAnswerAdvisor 未注入");
+        this.pgVectorStore = Objects.requireNonNull(pgVectorStore, "pgVectorStore 未注入");
         this.tokenTextSplitter = Objects.requireNonNull(tokenTextSplitter, "TokenTextSplitter 未注入");
         this.documentParseService = Objects.requireNonNull(documentParseService, "DocumentParseService 未注入");
-        this.documentIndexSyncService = Objects.requireNonNull(documentIndexSyncService, "DocumentIndexSyncService 未注入");
+        this.pgDocumentIndexSyncService = Objects.requireNonNull(pgDocumentIndexSyncService, "PgDocumentIndexSyncService 未注入");
     }
 
-    /**
-     * 将多段文本写入向量库。
-     */
     public RagIngestResponse ingest(RagIngestRequest request) {
         List<Document> documents = request.texts().stream()
                 .map(String::trim)
                 .filter(s -> !s.isEmpty())
-                .map(Document::new)
+                .map(text -> {
+                    Map<String, Object> metadata = new HashMap<>();
+                    metadata.put("vectorStore", "postgresql");
+                    metadata.put("ingestType", "text");
+                    return new Document(text, metadata);
+                })
                 .toList();
         if (documents.isEmpty()) {
             return new RagIngestResponse(0);
         }
-        vectorStore.add(documents);
-        documentIndexSyncService.syncDocuments(documents);
+        pgVectorStore.add(documents);
+        pgDocumentIndexSyncService.syncDocuments(documents);
         return new RagIngestResponse(documents.size());
     }
 
-    /**
-     * 上传 PDF / Word / TXT / Markdown，解析正文后分块写入向量库。
-     */
     public RagIngestDocumentResponse ingestDocument(MultipartFile file, String title) {
         DocumentParseService.ParsedDocument parsed = documentParseService.parse(file);
 
         Map<String, Object> metadata = new HashMap<>();
+        metadata.put("vectorStore", "postgresql");
         metadata.put("ingestType", "document");
         metadata.put("fileName", parsed.fileName());
         metadata.put("fileType", parsed.fileType());
@@ -96,9 +95,6 @@ public class RagService {
                 result.contentLength());
     }
 
-    /**
-     * 传入整篇长文，服务端按 token 自动分块后写入向量库。
-     */
     public RagIngestArticleResponse ingestArticle(RagIngestArticleRequest request) {
         String content = Objects.requireNonNull(request.content(), "content").trim();
         if (content.isEmpty()) {
@@ -106,6 +102,7 @@ public class RagService {
         }
 
         Map<String, Object> metadata = new HashMap<>();
+        metadata.put("vectorStore", "postgresql");
         metadata.put("ingestType", "article");
         if (request.title() != null && !request.title().isBlank()) {
             metadata.put("title", request.title().trim());
@@ -121,21 +118,18 @@ public class RagService {
             return new RagIngestArticleResponse(0, content.length());
         }
 
-        vectorStore.add(chunks);
-        documentIndexSyncService.syncDocuments(chunks);
+        pgVectorStore.add(chunks);
+        pgDocumentIndexSyncService.syncDocuments(chunks);
         return new RagIngestArticleResponse(chunks.size(), content.length());
     }
 
-    /**
-     * RAG 问答：检索相关片段，由大模型结合上下文生成回答，并返回引用摘要。
-     */
     public RagAskResponse ask(RagAskRequest request) {
         String question = Objects.requireNonNull(request.question(), "question").trim();
         ChatClientResponse clientResponse = chatClient.prompt()
                 .system("你是问答助手。请严格根据随后提供的「上下文片段」作答；若上下文不足以回答，请明确说明并不要编造事实。"
                         + "回答使用中文，简洁有条理。")
-                .advisors(questionAnswerAdvisor)
-                .user(Objects.requireNonNull(question, "question"))
+                .advisors(pgQuestionAnswerAdvisor)
+                .user(question)
                 .call()
                 .chatClientResponse();
 
@@ -143,8 +137,7 @@ public class RagService {
         String answer = Objects.requireNonNull(
                 Objects.requireNonNull(chatResponse.getResult(), "生成结果为空").getOutput().getText(),
                 "模型返回为空");
-        List<RagSource> sources = extractSources(clientResponse);
-        return new RagAskResponse(answer, sources);
+        return new RagAskResponse(answer, extractSources(clientResponse));
     }
 
     private static List<RagSource> extractSources(ChatClientResponse clientResponse) {

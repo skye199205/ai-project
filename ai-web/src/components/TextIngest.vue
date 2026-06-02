@@ -2,6 +2,9 @@
 import { ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { ingestTexts, extractErrorMessage } from '../api/client'
+import { useVectorBackend } from '../composables/useVectorBackend'
+
+const backend = useVectorBackend()
 
 const paragraphs = ref([''])
 const loading = ref(false)
@@ -33,7 +36,7 @@ async function submit() {
   loading.value = true
   lastAdded.value = null
   try {
-    const res = await ingestTexts({ texts })
+    const res = await ingestTexts({ texts }, backend.value)
     lastAdded.value = res.addedCount
     ElMessage.success(`已入库 ${res.addedCount} 段文本`)
     paragraphs.value = ['']

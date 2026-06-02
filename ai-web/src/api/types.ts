@@ -25,6 +25,28 @@ export interface RagAskResponse {
   sources: RagSource[]
 }
 
+/** 混合 RAG 引用片段 */
+export interface RagHybridSource {
+  excerpt: string
+  score: number | null
+  recallPath: string
+}
+
+/** 混合召回统计 */
+export interface RagRecallStats {
+  vectorHitCount: number
+  keywordHitCount: number
+  fusedCount: number
+  keywordIndexSize: number
+}
+
+/** 混合 RAG 问答响应 */
+export interface RagHybridAskResponse {
+  answer: string
+  sources: RagHybridSource[]
+  recallStats: RagRecallStats
+}
+
 /** 多段文本入库请求 */
 export interface RagIngestRequest {
   texts: string[]

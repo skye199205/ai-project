@@ -4,9 +4,12 @@ import { ElMessage } from 'element-plus'
 import type { UploadInstance, UploadRawFile } from 'element-plus'
 import { uploadDocument, extractErrorMessage } from '../api/client'
 import type { RagIngestDocumentResponse } from '../api/types'
+import { useVectorBackend } from '../composables/useVectorBackend'
 
 /** 嵌入知识库面板时不渲染外层卡片 */
 defineProps<{ embedded?: boolean }>()
+
+const backend = useVectorBackend()
 
 const ACCEPT_TYPES = '.pdf,.doc,.docx,.txt,.md'
 const uploadRef = ref<UploadInstance>()
@@ -18,7 +21,7 @@ async function handleUpload(raw: UploadRawFile) {
   uploading.value = true
   lastResult.value = null
   try {
-    const result = await uploadDocument(raw as File, title.value)
+    const result = await uploadDocument(raw as File, title.value, backend.value)
     lastResult.value = result
     ElMessage.success(`「${result.fileName}」已入库，共 ${result.chunkCount} 个分块`)
     uploadRef.value?.clearFiles()

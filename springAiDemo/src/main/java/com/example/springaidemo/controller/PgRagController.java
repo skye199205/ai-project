@@ -8,9 +8,10 @@ import com.example.springaidemo.response.RagHybridAskResponse;
 import com.example.springaidemo.response.RagIngestArticleResponse;
 import com.example.springaidemo.response.RagIngestDocumentResponse;
 import com.example.springaidemo.response.RagIngestResponse;
-import com.example.springaidemo.service.HybridRagService;
-import com.example.springaidemo.service.RagService;
+import com.example.springaidemo.service.PgHybridRagService;
+import com.example.springaidemo.service.PgRagService;
 import jakarta.validation.Valid;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -20,60 +21,60 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 /**
- * 基于 Chroma {@link org.springframework.ai.vectorstore.VectorStore} 的 RAG HTTP 接口：先入库文本，再按问题检索并生成回答。
+ * 基于 PostgreSQL pgvector 的 RAG HTTP 接口（与 {@link RagController} Chroma 路并存，便于对比）。
  */
 @RestController
-@RequestMapping("/api/rag")
-public class RagController {
+@RequestMapping("/api/pg-rag")
+@ConditionalOnBean(name = "pgVectorStore")
+public class PgRagController {
 
-    private final RagService ragService;
-    private final HybridRagService hybridRagService;
+    private final PgRagService pgRagService;
+    private final PgHybridRagService pgHybridRagService;
 
-    public RagController(RagService ragService, HybridRagService hybridRagService) {
-        this.ragService = ragService;
-        this.hybridRagService = hybridRagService;
+    public PgRagController(PgRagService pgRagService, PgHybridRagService pgHybridRagService) {
+        this.pgRagService = pgRagService;
+        this.pgHybridRagService = pgHybridRagService;
     }
 
     /**
-     * 将多段文本写入向量库；后续 {@link #ask(RagAskRequest)} 可基于这些内容回答。
+     * 多段文本写入 PostgreSQL 向量表。
      */
     @PostMapping(value = "/documents", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
     public RagIngestResponse ingest(@Valid @RequestBody RagIngestRequest request) {
-        return ragService.ingest(request);
+        return pgRagService.ingest(request);
     }
 
     /**
-     * 传入整篇长文，服务端按 token 自动分块后写入向量库。
+     * 长文自动分块后写入 PostgreSQL 向量表。
      */
     @PostMapping(value = "/documents/article", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
     public RagIngestArticleResponse ingestArticle(@Valid @RequestBody RagIngestArticleRequest request) {
-        return ragService.ingestArticle(request);
+        return pgRagService.ingestArticle(request);
     }
 
     /**
-     * 上传 PDF / Word / TXT / Markdown，解析并分块后写入向量库。
+     * 上传文档解析后写入 PostgreSQL 向量表。
      */
     @PostMapping(value = "/documents/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
     public RagIngestDocumentResponse ingestDocument(
             @RequestParam("file") MultipartFile file,
             @RequestParam(value = "title", required = false) String title) {
-        return ragService.ingestDocument(file, title);
+        return pgRagService.ingestDocument(file, title);
     }
 
     /**
-     * RAG 问答：检索相关片段，由大模型结合上下文生成回答，并返回引用摘要。
+     * 单路向量 RAG 问答（pgvector + QuestionAnswerAdvisor）。
      */
     @PostMapping(value = "/ask", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
     public RagAskResponse ask(@Valid @RequestBody RagAskRequest request) {
-        return ragService.ask(request);
+        return pgRagService.ask(request);
     }
 
     /**
-     * 混合 RAG 问答（对比学习）：向量语义召回 + 关键词召回，RRF 融合后再生成答案。
-     * 与 {@link #ask(RagAskRequest)} 使用相同请求体，响应中附带各路召回统计与片段来源。
+     * 混合 RAG 问答（pgvector + 关键词 + RRF）。
      */
     @PostMapping(value = "/ask/hybrid", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
     public RagHybridAskResponse askHybrid(@Valid @RequestBody RagAskRequest request) {
-        return hybridRagService.askHybrid(request);
+        return pgHybridRagService.askHybrid(request);
     }
 }

@@ -19,8 +19,13 @@ import static org.assertj.core.api.Assertions.assertThat;
  * 若出现 HTTP 404，请核对 base-url（地域）与模型名是否在控制台可用。
  * 本测试排除了 Chroma 自动配置并使用内存向量库，避免必须单独启动 Chroma 进程。
  */
-@SpringBootTest(properties = "spring.autoconfigure.exclude="
-        + "org.springframework.ai.vectorstore.chroma.autoconfigure.ChromaVectorStoreAutoConfiguration")
+@SpringBootTest(properties = {
+        "app.pgvector.enabled=false",
+        "spring.autoconfigure.exclude="
+                + "org.springframework.ai.vectorstore.chroma.autoconfigure.ChromaVectorStoreAutoConfiguration,"
+                + "org.springframework.ai.vectorstore.pgvector.autoconfigure.PgVectorStoreAutoConfiguration,"
+                + "org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration"
+})
 @Import(TestInMemoryVectorStoreConfiguration.class)
 @Tag("live-api")
 class DashScopeChatIntegrationTest {

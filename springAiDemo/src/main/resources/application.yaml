@@ -1,6 +1,13 @@
 spring:
   application:
     name: springAiDemo
+  # PostgreSQL（pgvector，供 /api/pg-rag 使用；与 Chroma 并存）
+  datasource:
+    # 使用 docker compose 中的 pgvector/pgvector（映射 5433）；勿连无 vector 扩展的普通 PG
+    url: jdbc:postgresql://localhost:5433/spring_ai_demo
+    username: postgres
+    password: postgres
+    driver-class-name: org.postgresql.Driver
   servlet:
     multipart:
       max-file-size: 50MB
@@ -39,9 +46,20 @@ spring:
     rag:
       top-k: 4
       similarity-threshold: 0.6
+      # 混合召回（/api/rag/ask/hybrid）：向量路 + 关键词路 + RRF
+      hybrid:
+        vector-top-k: 8
+        keyword-top-k: 8
+        final-top-k: 6
+        similarity-threshold: 0.5
+        rrf-k: 60
       # 长文自动分块（TokenTextSplitter，单位为 token 估算）
       chunk-size: 800
       min-chunk-size-chars: 350
+      # PostgreSQL pgvector（需与 DashScope text-embedding-v3 维度一致，常见为 1024）
+      pgvector:
+        dimensions: 1024
+        table-name: spring_ai_demo_pg_store
     # DashScope 托管 MCP（高德地图等）。鉴权与 OpenAI 兼容接口共用同一把 DashScope API Key（见 application-local.yaml）。
     mcp:
       client:
@@ -52,6 +70,11 @@ spring:
             amap-maps:
               url: https://dashscope.aliyuncs.com
               endpoint: /api/v1/mcps/amap-maps/mcp
+
+# 是否启用 PostgreSQL pgvector 一套（false 时仅使用 Chroma，且不连接 PG）
+app:
+  pgvector:
+    enabled: true
 
 server:
   port: 8091

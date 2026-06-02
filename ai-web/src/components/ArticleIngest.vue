@@ -3,6 +3,9 @@ import { ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { ingestArticle, extractErrorMessage } from '../api/client'
 import type { RagIngestArticleResponse } from '../api/types'
+import { useVectorBackend } from '../composables/useVectorBackend'
+
+const backend = useVectorBackend()
 
 const title = ref('')
 const content = ref('')
@@ -19,10 +22,13 @@ async function submit() {
   loading.value = true
   lastResult.value = null
   try {
-    const res = await ingestArticle({
-      content: text,
-      title: title.value.trim() || undefined,
-    })
+    const res = await ingestArticle(
+      {
+        content: text,
+        title: title.value.trim() || undefined,
+      },
+      backend.value
+    )
     lastResult.value = res
     ElMessage.success(`长文已入库，共 ${res.chunkCount} 个分块`)
     content.value = ''

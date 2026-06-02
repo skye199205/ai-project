@@ -9,8 +9,13 @@ import org.springframework.context.annotation.Import;
  * 默认上下文测试不拉起 Chroma，改为内存 {@link org.springframework.ai.vectorstore.SimpleVectorStore}。
  */
 @SpringBootTest(
-        properties = "spring.autoconfigure.exclude="
-                + "org.springframework.ai.vectorstore.chroma.autoconfigure.ChromaVectorStoreAutoConfiguration")
+        properties = {
+                "app.pgvector.enabled=false",
+                "spring.autoconfigure.exclude="
+                        + "org.springframework.ai.vectorstore.chroma.autoconfigure.ChromaVectorStoreAutoConfiguration,"
+                        + "org.springframework.ai.vectorstore.pgvector.autoconfigure.PgVectorStoreAutoConfiguration,"
+                        + "org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration"
+        })
 @Import(TestInMemoryVectorStoreConfiguration.class)
 class SpringAiDemoApplicationTests {
 

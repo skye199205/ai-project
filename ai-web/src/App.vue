@@ -2,6 +2,10 @@
 import KnowledgePanel from './components/KnowledgePanel.vue'
 import RagChat from './components/RagChat.vue'
 import GeneralChat from './components/GeneralChat.vue'
+import VectorBackendSelector from './components/VectorBackendSelector.vue'
+import { provideVectorBackend } from './composables/useVectorBackend'
+
+provideVectorBackend()
 </script>
 
 <template>
@@ -9,10 +13,11 @@ import GeneralChat from './components/GeneralChat.vue'
     <el-header class="app-header">
       <div class="header-inner">
         <el-icon :size="28" color="#409eff"><ChatDotRound /></el-icon>
-        <div>
+        <div class="header-text">
           <h1>Spring AI Demo</h1>
-          <p>知识库入库 + RAG 问答 + 通用对话</p>
+          <p>知识库入库 + 混合 RAG 问答 + 通用对话</p>
         </div>
+        <VectorBackendSelector />
       </div>
     </el-header>
 
@@ -23,7 +28,7 @@ import GeneralChat from './components/GeneralChat.vue'
         </el-col>
         <el-col :xs="24" :lg="14">
           <el-tabs type="border-card" class="chat-tabs">
-            <el-tab-pane label="RAG 文档问答">
+            <el-tab-pane label="混合 RAG 问答">
               <RagChat />
             </el-tab-pane>
             <el-tab-pane label="通用对话">
@@ -69,6 +74,11 @@ body {
   gap: 16px;
   max-width: 1200px;
   margin: 0 auto;
+  width: 100%;
+}
+
+.header-text {
+  flex-shrink: 0;
 }
 
 .header-inner h1 {
